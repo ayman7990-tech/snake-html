@@ -1,0 +1,16 @@
+{
+  "name": "snake-game",
+  "version": "1.0.0",
+  "description": "Snake Game HTML5",
+  "main": "index.html",
+  "scripts": {
+    "build": "echo 'Static HTML - no build needed'"
+  },
+  "author": "Ayman",
+  "license": "MIT",
+  "devDependencies": {
+    "@capacitor/cli": "^5.0.0",
+    "@capacitor/core": "^5.0.0",
+    "@capacitor/android": "^5.0.0"
+  }
+}
