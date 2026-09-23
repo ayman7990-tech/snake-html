@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🐍 Snake Game</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a1a; font-family: Tahoma, sans-serif; }
+  #game { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; padding: 10px; }
+  #score { color: #00ff88; font-size: 22px; margin-bottom: 10px; font-weight: bold; text-shadow: 0 0 10px #00ff88; }
+  #high { color: #ffbb00; font-size: 16px; margin-bottom: 10px; }
+  canvas { background: #050510; border: 2px solid #00ff88; border-radius: 10px; box-shadow: 0 0 30px rgba(0,255,136,0.4); touch-action: none; max-width: 95vw; max-height: 70vh; }
+  #overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 10; }
+  #overlay h1 { color: #ff3355; font-size: 36px; margin-bottom: 20px; text-shadow: 0 0 20px #ff3355; }
+  #overlay p { color: #fff; font-size: 18px; margin-bottom: 10px; }
+  #overlay button { margin-top: 20px; padding: 15px 40px; font-size: 18px; font-weight: bold; background: linear-gradient(135deg, #00ff88, #00aa55); color: #000; border: none; border-radius: 30px; cursor: pointer; box-shadow: 0 0 20px rgba(0,255,136,0.5); }
+  #controls { margin-top: 15px; display: grid; grid-template-columns: repeat(3, 70px); grid-template-rows: repeat(2, 70px); gap: 10px; }
+  #controls button { background: rgba(0,255,136,0.15); border: 2px solid #00ff88; color: #00ff88; font-size: 24px; border-radius: 12px; cursor: pointer; font-weight: bold; }
+  #controls button:active { background: #00ff88; color: #000; }
+  .btn-up    { grid-column: 2; grid-row: 1; }
+  .btn-left  { grid-column: 1; grid-row: 2; }
+  .btn-down  { grid-column: 2; grid-row: 2; }
+  .btn-right { grid-column: 3; grid-row: 2; }
+</style>
+</head>
+<body>
+<div id="game">
+  <div id="score">النقاط: 0</div>
+  <div id="high">الأعلى: 0</div>
+  <canvas id="canvas"></canvas>
+  <div id="controls">
+    <button class="btn-up"    onclick="changeDir('up')">▲</button>
+    <button class="btn-left"  onclick="changeDir('left')">◀</button>
+    <button class="btn-down"  onclick="changeDir('down')">▼</button>
+    <button class="btn-right" onclick="changeDir('right')">▶</button>
+  </div>
+</div>
+
+<div id="overlay">
+  <h1>GAME OVER</h1>
+  <p>النقاط: <span id="finalScore">0</span></p>
+  <p>الأعلى: <span id="finalHigh">0</span></p>
+  <button onclick="restart()">🔄 العب من جديد</button>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const CELL = 20;
+const GRID_W = 16;
+const GRID_H = 24;
+canvas.width = CELL * GRID_W;
+canvas.height = CELL * GRID_H;
+
+let snake, dir, nextDir, food, score, high, gameOver, moveInterval, lastMove;
+high = parseInt(localStorage.getItem('snake_high') || '0');
+
+function init() {
+  snake = [{x:8,y:12},{x:7,y:12},{x:6,y:12}];
+  dir = {x:1,y:0};
+  nextDir = {x:1,y:0};
+  score = 0;
+  gameOver = false;
+  spawnFood();
+  updateScore();
+  document.getElementById('overlay').style.display = 'none';
+  lastMove = 0;
+  if (moveInterval) cancelAnimationFrame(moveInterval);
+  loop();
+}
+
+function spawnFood() {
+  while (true) {
+    const f = { x: Math.floor(Math.random()*GRID_W), y: Math.floor(Math.random()*GRID_H) };
+    if (!snake.some(s => s.x === f.x && s.y === f.y)) { food = f; return; }
+  }
+}
+
+function updateScore() {
+  document.getElementById('score').textContent = 'النقاط: ' + score;
+  document.getElementById('high').textContent = 'الأعلى: ' + high;
+}
+
+function changeDir(d) {
+  const map = { up:{x:0,y:-1}, down:{x:0,y:1}, left:{x:-1,y:0}, right:{x:1,y:0} };
+  const nd = map[d];
+  if (!nd) return;
+  if (nd.x === -dir.x && nd.y === -dir.y) return;
+  nextDir = nd;
+}
+
+function move() {
+  if (gameOver) return;
+  dir = nextDir;
+  const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+
+  if (head.x < 0 || head.x >= GRID_W || head.y < 0 || head.y >= GRID_H) return endGame();
+  if (snake.some(s => s.x === head.x && s.y === head.y)) return endGame();
+
+  snake.unshift(head);
+  if (head.x === food.x && head.y === food.y) {
+    score += 10;
+    if (score > high) { high = score; localStorage.setItem('snake_high', high); }
+    spawnFood();
+    updateScore();
+  } else {
+    snake.pop();
+  }
+}
+
+function draw() {
+  ctx.fillStyle = '#050510';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.strokeStyle = 'rgba(0,255,136,0.05)';
+  for (let i = 0; i <= GRID_W; i++) { ctx.beginPath(); ctx.moveTo(i*CELL,0); ctx.lineTo(i*CELL,canvas.height); ctx.stroke(); }
+  for (let j = 0; j <= GRID_H; j++) { ctx.beginPath(); ctx.moveTo(0,j*CELL); ctx.lineTo(canvas.width,j*CELL); ctx.stroke(); }
+
+  ctx.shadowBlur = 15;
+  ctx.shadowColor = '#00ff88';
+  ctx.fillStyle = '#00ff88';
+  snake.forEach((s, i) => {
+    const pad = i === 0 ? 1 : 2;
+    ctx.fillRect(s.x*CELL + pad, s.y*CELL + pad, CELL - pad*2, CELL - pad*2);
+  });
+
+  ctx.shadowColor = '#ff3355';
+  ctx.fillStyle = '#ff3355';
+  ctx.beginPath();
+  ctx.arc(food.x*CELL + CELL/2, food.y*CELL + CELL/2, CELL/2 - 3, 0, Math.PI*2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+}
+
+function loop(t) {
+  if (gameOver) return;
+  if (t - lastMove > 130) { move(); lastMove = t; }
+  draw();
+  moveInterval = requestAnimationFrame(loop);
+}
+
+function endGame() {
+  gameOver = true;
+  document.getElementById('finalScore').textContent = score;
+  document.getElementById('finalHigh').textContent = high;
+  document.getElementById('overlay').style.display = 'flex';
+}
+
+function restart() { init(); }
+
+// سحب الإصبع
+let touchStart = null;
+canvas.addEventListener('touchstart', e => { touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY }; e.preventDefault(); }, {passive:false});
+canvas.addEventListener('touchmove', e => {
+  if (!touchStart) return;
+  const dx = e.touches[0].clientX - touchStart.x;
+  const dy = e.touches[0].clientY - touchStart.y;
+  if (Math.abs(dx) < 20 && Math.abs(dy) < 20) return;
+  if (Math.abs(dx) > Math.abs(dy)) changeDir(dx > 0 ? 'right' : 'left');
+  else changeDir(dy > 0 ? 'down' : 'up');
+  touchStart = null;
+  e.preventDefault();
+}, {passive:false});
+
+// لوحة المفاتيح
+document.addEventListener('keydown', e => {
+  const map = { ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right', w:'up', s:'down', a:'left', d:'right' };
+  if (map[e.key]) { changeDir(map[e.key]); e.preventDefault(); }
+});
+
+init();
+</script>
+</body>
+</html>
