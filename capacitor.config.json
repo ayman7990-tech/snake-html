@@ -1,0 +1,9 @@
+{
+  "appId": "com.ayman.snake",
+  "appName": "Snake Game",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "android": {
+    "allowMixedContent": true
+  }
+}
